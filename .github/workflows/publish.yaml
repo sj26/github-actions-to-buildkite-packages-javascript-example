@@ -1,0 +1,34 @@
+name: Publish
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  id-token: write
+
+jobs:
+  publish:
+    name: Publish
+    runs-on: ubuntu-latest
+    steps:
+      - uses: buildkite/setup-bk@HEAD
+      - uses: actions/checkout@v4
+      - name: Build
+        run: |
+          npm pack
+      - name: Push
+        run: |
+          export BUILDKITE_API_TOKEN="$(curl -sSf -H "Authorization: Bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=https://packages.buildkite.com/sj26/test-javascript" | jq -r .value)"
+          export BUILDKITE_ORGANIZATION_SLUG="sj26"
+
+          echo "BUILDKITE_API_TOKEN=${BUILDKITE_API_TOKEN:0:4}..${BUILDKITE_API_TOKEN: -4}"
+          echo "BUILDKITE_ORGANIZATION_SLUG=${BUILDKITE_ORGANIZATION_SLUG}"
+
+          bk package push test-javascript *.tgz
+      - name: Breakpoint
+        if: failure()
+        uses: namespacelabs/breakpoint-action@v0
+        with:
+          duration: 30m
+          authorized-users: sj26
